@@ -39,6 +39,8 @@ public class Message {
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    private OffsetDateTime deliveredAt;
+    @Builder.Default
+    private OffsetDateTime deliveredAt = OffsetDateTime.now();
+
     private OffsetDateTime readAt;
 }

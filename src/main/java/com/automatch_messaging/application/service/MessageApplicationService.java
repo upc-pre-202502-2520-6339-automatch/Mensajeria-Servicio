@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Service
@@ -17,7 +18,7 @@ public class MessageApplicationService {
 
     private final MessageRepository repository;
     private final MessageDomainService domainService;
-    private final KafkaMessageProducer producer; // simulado por ahora
+    private final KafkaMessageProducer producer;
 
     @Transactional
     public Message send(MessageRequestDTO dto) {
@@ -28,10 +29,15 @@ public class MessageApplicationService {
                 .content(dto.content())
                 .build();
 
+        // La lógica de dominio original
         msg = domainService.prepareNewMessage(msg);
+
+        // == fijar deliveredAt para que NO sea null ==
+        msg.setDeliveredAt(OffsetDateTime.now());
+
         Message saved = repository.save(msg);
 
-        // Publica evento (simulado)
+        // Publicar evento (simulado)
         producer.publishMessageCreated(saved);
         return saved;
     }
@@ -45,7 +51,16 @@ public class MessageApplicationService {
     public Message markAsRead(Long messageId) {
         Message msg = repository.findById(messageId)
                 .orElseThrow(() -> new IllegalArgumentException("Mensaje no encontrado: " + messageId));
+
         domainService.markAsRead(msg);
+
+        if (msg.getDeliveredAt() == null) {
+            msg.setDeliveredAt(java.time.OffsetDateTime.now());
+        }
+        if (msg.getReadAt() == null) {
+            msg.setReadAt(java.time.OffsetDateTime.now());
+        }
+
         return repository.save(msg);
     }
 }
