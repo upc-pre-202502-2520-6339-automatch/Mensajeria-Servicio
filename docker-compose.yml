@@ -1,7 +1,7 @@
 services:
-  postgres:
+  postgres_messaging:
     image: postgres:16
-    container_name: messaging-db
+    container_name: postgres_messaging
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -9,19 +9,68 @@ services:
     ports:
       - "5434:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_messaging:/var/lib/postgresql/data
+    networks:
+      - automatch-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper_messaging
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2182:2181"
+    networks:
+      - automatch-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka_messaging
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper_messaging:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_messaging:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9093:9092"
+    networks:
+      - automatch-network
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    container_name: kafdrop_messaging
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERCONNECT: kafka_messaging:9092
+    ports:
+      - "9001:9000"
+    networks:
+      - automatch-network
 
   messaging-service:
     build: .
     container_name: messaging-service
+    depends_on:
+      - postgres_messaging
+      - kafka
     ports:
       - "8084:8084"
-    depends_on:
-      - postgres
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/automatch_messaging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_messaging:5432/automatch_messaging
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka_messaging:9092
+    networks:
+      - automatch-network
 
 volumes:
-  pgdata:
+  pgdata_messaging:
+
+networks:
+  automatch-network:
+    driver: bridge

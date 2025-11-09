@@ -4,7 +4,7 @@ import com.automatch_messaging.application.dto.MessageRequestDTO;
 import com.automatch_messaging.domain.model.Message;
 import com.automatch_messaging.domain.repository.MessageRepository;
 import com.automatch_messaging.domain.service.MessageDomainService;
-import com.automatch_messaging.infrastructure.messaging.KafkaMessageProducer;
+import com.automatch_messaging.infrastructure.messaging.kafka.producer.MessageEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +18,7 @@ public class MessageApplicationService {
 
     private final MessageRepository repository;
     private final MessageDomainService domainService;
-    private final KafkaMessageProducer producer;
+    private final MessageEventProducer producer;
 
     @Transactional
     public Message send(MessageRequestDTO dto) {
